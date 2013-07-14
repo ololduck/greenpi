@@ -66,7 +66,7 @@ def send_pushover_msg(msg):
 
 def convert_temp(val):
     """
-    Converts reading to C° temperature
+    Converts reading to Celsius degrees
     """
     v = val * (3.3 / 1023.0)
     return v * 100 - 50
