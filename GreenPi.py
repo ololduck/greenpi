@@ -124,8 +124,8 @@ def run():
             moisture.update()
             light.update()
             temp.update()
-        except HTTPError as e:
-            print("HTTPError(%s): %s" % (e.errno, e.strerror))
+        except Exception as e:
+            print("%s" % e.strerror)
         time.sleep(UPDATE_DELAY)
 
 
