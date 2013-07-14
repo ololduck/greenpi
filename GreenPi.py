@@ -10,15 +10,14 @@ Designed to monitor a desktop plant
 
 import time
 import os
-import sys
 from xively import XivelyAPIClient
 from spidev import SpiDev
 from datetime import datetime
-from requests import HTTPError
 import requests
 import RPi.GPIO as GPIO
 
 def getenv(key):
+    "returns the value of the given environment variable or raises an exception"
     if(key in os.environ):
         return os.environ[key]
     raise EnvironmentError("Environment variable %s not found" % key)

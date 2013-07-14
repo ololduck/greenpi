@@ -12,3 +12,4 @@ We get the following readings:
 
 * get rid of xively, use some sqlite db instead, for instance. Provide a mini flask app to graph data.
 * use a config file, instead of environment variables?
+
