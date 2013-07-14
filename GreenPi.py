@@ -33,7 +33,12 @@ XIVELY_API_KEY = getenv("XIVELY_API_KEY")
 XIVELY_FEED_ID = getenv("XIVELY_FEED_ID")
 
 PUSHOVER_APP_KEY = "ekmEHrj1nmAtMLqGHkP2oyDU2NaHFX"
-PUSHOVER_USER_KEY = getenv("PUSHOVER_USER_KEY")
+
+try:
+    PUSHOVER_USER_KEY = getenv("PUSHOVER_USER_KEY")
+except:
+    PUSHOVER_USER_KEY = ""
+    print("No pushover support: PUSHOVER_USER_KEY not set")
 
 # pins numbers
 ADC_LIGHT_PIN = 0
@@ -55,14 +60,17 @@ def send_pushover_msg(msg):
     """
     sends a message to pushover, with the right applicaiton key
     """
-    requests.post("https://api.pushover.net/1/messages.json",
-            data = {
-                "token": PUSHOVER_APP_KEY,
-                "user": PUSHOVER_USER_KEY,
-                "message": msg,
-                "title": "GreenPi"
-                }
-            )
+    try:
+        requests.post("https://api.pushover.net/1/messages.json",
+                data = {
+                    "token": PUSHOVER_APP_KEY,
+                    "user": PUSHOVER_USER_KEY,
+                    "message": msg,
+                    "title": "GreenPi"
+                    }
+                )
+    except:
+        print("No internet connection or no Pushover support.")
 
 def convert_temp(val):
     """
