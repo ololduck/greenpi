@@ -1,5 +1,5 @@
 """
-GreePi
+GreenPi
 
 Designed to monitor a desktop plant
 
@@ -53,6 +53,9 @@ spi = SpiDev()
 spi.open(0, 0)
 
 def send_pushover_msg(msg):
+    """
+    sends a message to pushover, with the right applicaiton key
+    """
     requests.post("https://api.pushover.net/1/messages.json",
             data = {
                 "token": PUSHOVER_APP_KEY,
@@ -63,12 +66,18 @@ def send_pushover_msg(msg):
             )
 
 def convert_temp(val):
+    """
+    Converts reading to C° temperature
+    """
     v = val * (3.3 / 1023.0)
     return v * 100 - 50
 
 
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
 def readadc(adcnum):
+    """
+    reads pin adcnum from MCP3008
+    """
     if ((adcnum > 7) or (adcnum < 0)):
         return -1
     r = spi.xfer2([1,(8+adcnum)<<4,0])
@@ -78,6 +87,9 @@ def readadc(adcnum):
 # function to return a datastream object. This either creates a new datastream,
 # or returns an existing one
 def get_datastream(feed, key):
+    """
+    gets Xively data stream from the given feed, with the given key
+    """
     try:
         datastream = feed.datastreams.get(key)
         if DEBUG:
@@ -90,6 +102,9 @@ def get_datastream(feed, key):
         return datastream
 
 def run():
+    """
+    Launches the main loop
+    """
     api = XivelyAPIClient(XIVELY_API_KEY)
     feed = api.feeds.get(XIVELY_FEED_ID)
 
