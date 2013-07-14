@@ -1,3 +1,10 @@
+"""
+GreePi
+
+Designed to monitor a desktop plant
+
+
+"""
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -8,8 +15,13 @@ from xively import XivelyAPIClient
 from spidev import SpiDev
 from datetime import datetime
 from requests import HTTPError
+import requests
 import RPi.GPIO as GPIO
 
+def getenv(key):
+    if(key in os.environ):
+        return os.environ[key]
+    raise EnvironmentError("Environment variable %s not found" % key)
 
 if("DEBUG" in os.environ):
     DEBUG = os.environ["DEBUG"]
@@ -18,15 +30,11 @@ else:
 
 # xyvely API configuration
 
-if("XIVELY_API_KEY" not in os.environ):
-    print("ERROR: environment variable XIVELY_API_KEY not found.")
-    sys.exit(1)
+XIVELY_API_KEY = getenv("XIVELY_API_KEY")
+XIVELY_FEED_ID = getenv("XIVELY_FEED_ID")
 
-if("XIVELY_FEED_ID" not in os.environ):
-    print("ERROR: environment variable XIVELY_FEED_ID not found.")
-    sys.exit(1)
-XIVELY_API_KEY = os.environ["XIVELY_API_KEY"]
-XIVELY_FEED_ID = os.environ["XIVELY_FEED_ID"]
+PUSHOVER_APP_KEY = "ekmEHrj1nmAtMLqGHkP2oyDU2NaHFX"
+PUSHOVER_USER_KEY = getenv("PUSHOVER_USER_KEY")
 
 # pins numbers
 ADC_LIGHT_PIN = 0
@@ -44,6 +52,16 @@ GPIO.setup(ALERT_PIN, GPIO.OUT)
 spi = SpiDev()
 spi.open(0, 0)
 
+def send_pushover_msg(msg):
+    requests.post("https://api.pushover.net/1/messages.json",
+            data = {
+                "token": PUSHOVER_APP_KEY,
+                "user": PUSHOVER_USER_KEY,
+                "message": msg,
+                "title": "GreenPi"
+                }
+            )
+
 def convert_temp(val):
     v = val * (3.3 / 1023.0)
     return v * 100 - 50
@@ -51,11 +69,11 @@ def convert_temp(val):
 
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
 def readadc(adcnum):
-        if ((adcnum > 7) or (adcnum < 0)):
-                return -1
-        r = spi.xfer2([1,(8+adcnum)<<4,0])
-        adcout = ((r[1]&3) << 8) + r[2]
-        return adcout
+    if ((adcnum > 7) or (adcnum < 0)):
+        return -1
+    r = spi.xfer2([1,(8+adcnum)<<4,0])
+    adcout = ((r[1]&3) << 8) + r[2]
+    return adcout
 
 # function to return a datastream object. This either creates a new datastream,
 # or returns an existing one
@@ -63,7 +81,7 @@ def get_datastream(feed, key):
     try:
         datastream = feed.datastreams.get(key)
         if DEBUG:
-            print "Found existing datastream %s" % hey
+            print "Found existing datastream %s" % key
         return datastream
     except:
         if DEBUG:
@@ -79,6 +97,7 @@ def run():
     light = get_datastream(feed, "light")
     temp = get_datastream(feed, "temp")
 
+    sent_notification = False
 
     while True:
         moisture.current_value = readadc(ADC_MOISTURE_PIN)
@@ -88,10 +107,18 @@ def run():
         temp.current_value = "%.2f" % convert_temp(readadc(ADC_TMP_PIN))
         temp.at = datetime.utcnow()
         if(DEBUG):
-            print("Moisture: %d, light: %d, temp: %s" % (moisture.current_value, light.current_value, temp.current_value))
+            print("Moisture: %d, light: %d, temp: %s" % (
+                moisture.current_value,
+                light.current_value,
+                temp.current_value))
         if(moisture.current_value < MOISTURE_THRESHOLD):
+            if(not sent_notification):
+                send_pushover_msg(
+                        "Please water your plant: %s" % moisture.current_value)
+                sent_notification = True
             GPIO.output(ALERT_PIN, GPIO.HIGH)
         else:
+            sent_notification = False
             GPIO.output(ALERT_PIN, GPIO.LOW)
         try:
             moisture.update()
