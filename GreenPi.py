@@ -50,11 +50,6 @@ MOISTURE_THRESHOLD = 500 # When should we blink the light ?
 
 UPDATE_DELAY = 60 # 1 minute
 
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(ALERT_PIN, GPIO.OUT)
-
-spi = SpiDev()
-spi.open(0, 0)
 
 def send_pushover_msg(msg):
     """
@@ -81,7 +76,7 @@ def convert_temp(val):
 
 
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
-def readadc(adcnum):
+def readadc(spi, adcnum):
     """
     reads pin adcnum from MCP3008
     """
@@ -112,44 +107,50 @@ def run():
     """
     Launches the main loop
     """
-    api = XivelyAPIClient(XIVELY_API_KEY)
-    feed = api.feeds.get(XIVELY_FEED_ID)
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(ALERT_PIN, GPIO.OUT)
+    try:
+        spi = SpiDev()
+        spi.open(0, 0)
+        api = XivelyAPIClient(XIVELY_API_KEY)
+        feed = api.feeds.get(XIVELY_FEED_ID)
 
-    moisture = get_datastream(feed, "water")
-    light = get_datastream(feed, "light")
-    temp = get_datastream(feed, "temp")
+        moisture = get_datastream(feed, "water")
+        light = get_datastream(feed, "light")
+        temp = get_datastream(feed, "temp")
 
-    sent_notification = False
+        sent_notification = False
 
-    while True:
-        moisture.current_value = readadc(ADC_MOISTURE_PIN)
-        moisture.at = datetime.utcnow()
-        light.current_value = readadc(ADC_LIGHT_PIN)
-        light.at = datetime.utcnow()
-        temp.current_value = "%.2f" % convert_temp(readadc(ADC_TMP_PIN))
-        temp.at = datetime.utcnow()
-        if(DEBUG):
-            print("Moisture: %d, light: %d, temp: %s" % (
-                moisture.current_value,
-                light.current_value,
-                temp.current_value))
-        if(moisture.current_value < MOISTURE_THRESHOLD):
-            if(not sent_notification):
-                send_pushover_msg(
-                        "Please water your plant: %s" % moisture.current_value)
-                sent_notification = True
-            GPIO.output(ALERT_PIN, GPIO.HIGH)
-        else:
-            sent_notification = False
-            GPIO.output(ALERT_PIN, GPIO.LOW)
-        try:
-            moisture.update()
-            light.update()
-            temp.update()
-        except Exception as e:
-            print("%s" % e.strerror)
-        time.sleep(UPDATE_DELAY)
-
+        while True:
+            moisture.current_value = readadc(spi, ADC_MOISTURE_PIN)
+            moisture.at = datetime.utcnow()
+            light.current_value = readadc(spi, ADC_LIGHT_PIN)
+            light.at = datetime.utcnow()
+            temp.current_value = "%.2f" % convert_temp(readadc(spi, ADC_TMP_PIN))
+            temp.at = datetime.utcnow()
+            if(DEBUG):
+                print("Moisture: %d, light: %d, temp: %s" % (
+                    moisture.current_value,
+                    light.current_value,
+                    temp.current_value))
+            if(moisture.current_value < MOISTURE_THRESHOLD):
+                if(not sent_notification):
+                    send_pushover_msg(
+                            "Please water your plant: %s" % moisture.current_value)
+                    sent_notification = True
+                GPIO.output(ALERT_PIN, GPIO.HIGH)
+            else:
+                sent_notification = False
+                GPIO.output(ALERT_PIN, GPIO.LOW)
+            try:
+                moisture.update()
+                light.update()
+                temp.update()
+            except Exception as e:
+                print("%s" % e.strerror)
+            time.sleep(UPDATE_DELAY)
+    finally:
+        GPIO.cleanup()
 
 if __name__ == "__main__":
     run()
